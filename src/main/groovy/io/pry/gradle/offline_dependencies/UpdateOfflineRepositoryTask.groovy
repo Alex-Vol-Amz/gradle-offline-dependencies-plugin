@@ -17,6 +17,7 @@ import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.result.UnresolvedArtifactResult
 import org.gradle.api.internal.artifacts.DefaultModuleIdentifier
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import org.gradle.internal.component.external.model.DefaultModuleComponentIdentifier
 import org.gradle.ivy.IvyDescriptorArtifact
@@ -26,12 +27,13 @@ import org.gradle.language.base.artifact.SourcesArtifact
 import org.gradle.language.java.artifact.JavadocArtifact
 import org.gradle.maven.MavenModule
 import org.gradle.maven.MavenPomArtifact
-import org.gradle.util.GFileUtils
+import java.nio.file.Files
 
 import static io.pry.gradle.offline_dependencies.Utils.addToMultimap
 
 class UpdateOfflineRepositoryTask extends DefaultTask {
 
+    @Internal
     def EMPTY_DEPENDENCIES_ARRAY = new Dependency[0]
 
     @Input
@@ -56,9 +58,9 @@ class UpdateOfflineRepositoryTask extends DefaultTask {
         withRepositoryFiles { repositoryFiles ->
             // copy collected files to destination directory
             repositoryFiles.each { id, files ->
-                def directory = moduleDirectory(id)
-                GFileUtils.mkdirs(directory)
-                files.each { File file -> GFileUtils.copyFile(file, new File(directory, file.name)) }
+                def directory = moduleDirectory(id).toPath()
+                Files.createDirectories(directory)
+                files.each { File file -> Files.copy(file.toPath(), directory.resolve(file.name)) }
             }
         }
     }

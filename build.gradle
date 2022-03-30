@@ -1,19 +1,11 @@
-buildscript {
-	repositories {
-		maven {
-			url "https://plugins.gradle.org/m2/"
-		}
-	}
-	dependencies {
-		classpath "com.gradle.publish:plugin-publish-plugin:0.10.0"
-	}
+plugins {
+	id "com.gradle.plugin-publish" version "0.20.0"
+	id 'groovy'
+	id 'java-gradle-plugin'
 }
 
-apply plugin: "com.gradle.plugin-publish"
-apply plugin: 'groovy'
-
 group = 'io.pry.gradle.offline_dependencies'
-version = '0.6.0-SNAPSHOT'
+version = '0.7.0-SNAPSHOT'
 description = 'Store project dependencies alongside your code for reproducible offline builds'
 
 repositories {
@@ -22,10 +14,10 @@ repositories {
 }
 
 ext {
-	mavenVersion = '3.6.0'
+	mavenVersion = '3.8.5'
 	jarjarVersion = '1.2.1'
 
-	thirdpartyLibsDir = "$project.rootDir/libs/"
+	thirdpartyLibsDir = file('libs')
 }
 
 configurations {
@@ -45,14 +37,14 @@ dependencies {
 }
 
 task repackageDependencies(type: Jar) {
-	archivesBaseName = 'offline-dependencies-plugin-thirdparty-repackaged-all'
-	version = project.version
-	destinationDirectory = new File(thirdpartyLibsDir)
+	archiveBaseName = 'offline-dependencies-plugin-thirdparty-repackaged-all'
+	archiveVersion = project.version
+	destinationDirectory = thirdpartyLibsDir
 
 	doLast {
 		project.ant {
 			taskdef name: "jarjar", classname: "com.tonicsystems.jarjar.JarJarTask", classpath: configurations.jarjar.asPath
-			jarjar(destfile: archivePath) {
+			jarjar(destfile: archiveFile.get().asFile) {
 				configurations.thirdparty.each { originalJar ->
 					zipfileset(src: originalJar)
 				}
@@ -67,11 +59,11 @@ task repackageDependencies(type: Jar) {
 compileJava.dependsOn 'repackageDependencies'
 
 jar {
-	from(zipTree(repackageDependencies.archivePath)) {
+	from(zipTree(repackageDependencies.outputs.files.singleFile)) {
 		include '**'
 	}
 
-	baseName = 'offline-dependencies-plugin'
+	archivesBaseName = 'offline-dependencies-plugin'
 
 	manifest {
 		attributes(
@@ -80,6 +72,15 @@ jar {
 				'Implementation-Version': project.version,
 				'Implementation-Vendor': 'Marc Dietrichstein'
 		)
+	}
+}
+
+gradlePlugin {
+	plugins {
+		gradleOfflineDependenciesPlugin {
+			id = 'io.pry.gradle.offline_dependencies'
+			implementationClass = 'io.pry.gradle.offline_dependencies.OfflineDependenciesPlugin'
+		}
 	}
 }
 
